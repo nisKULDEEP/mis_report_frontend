@@ -13,7 +13,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { Loader, PrimaryLogo } from '../../assets';
+import { PrimaryLogo } from '../../assets';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
@@ -44,18 +44,28 @@ const Login = () => {
     navigate('/');
   };
 
-  if (postLoginResponse.isSuccess) {
-    let token = localStorage.getItem('token');
-    token =
-      token?.trim().replace(`"`, '').split(' ')?.[1]?.replace(`"`, '') || '';
-    if (!Boolean(token) || token === 'undefined')
-      localStorage.setItem('token', `Bearer ${postLoginResponse.data.token}`);
-    handleLoginCredentials();
-  }
-
   const handleLogin = async () => {
     postLoginResponse.mutate();
   };
+  useEffect(() => {
+    if (postLoginResponse?.data?.status === 'success') {
+      let token = localStorage.getItem('token');
+      token =
+        token?.trim().replace(`"`, '').split(' ')?.[1]?.replace(`"`, '') || '';
+      if (!Boolean(token) || token === 'undefined') {
+        localStorage.setItem('token', `Bearer ${postLoginResponse.data.token}`);
+      }
+      handleLoginCredentials();
+    }
+    if (postLoginResponse?.data?.status === 'failed') {
+      localStorage.removeItem('token');
+      dispatch(reset());
+      setError({
+        status: true,
+        msg: postLoginResponse?.data?.msg || 'Something went wrong',
+      });
+    }
+  }, [postLoginResponse?.data?.status]);
 
   useEffect(() => {
     let token = localStorage.getItem('token');
@@ -67,20 +77,6 @@ const Login = () => {
       dispatch(reset());
     }
   }, []);
-
-  if (postLoginResponse.isLoading) {
-    return (
-      <Box margin='auto'>
-        <Box src={Loader} component='img' alt='loading' />
-      </Box>
-    );
-  }
-
-  if (postLoginResponse.isError) {
-    localStorage.removeItem('token');
-    dispatch(reset());
-    setError({ status: true, msg: JSON.stringify(postLoginResponse.error) });
-  }
 
   return (
     <ContentWrapper>
@@ -127,8 +123,12 @@ const Login = () => {
               }
               fullWidth
             />
-            <Button onClick={() => handleLogin()} variant='contained'>
-              Submit
+            <Button
+              disabled={postLoginResponse.isLoading}
+              onClick={() => handleLogin()}
+              variant='contained'
+            >
+              {postLoginResponse.isLoading ? 'Loading' : 'Submit'}
             </Button>
             <Button onClick={() => navigate('/signup')} variant='outlined'>
               SignUp
